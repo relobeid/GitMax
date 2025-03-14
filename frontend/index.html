@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitMax - GitHub Career Coaching</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .profile {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .profile img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin-right: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>GitMax - GitHub Career Coaching</h1>
+        
+        <div id="login-section">
+            <p>Connect your GitHub profile to get personalized career coaching based on your repositories and contributions.</p>
+            <a href="http://localhost:8000/api/auth/login" class="btn">Login with GitHub</a>
+        </div>
+        
+        <div id="profile-section" class="hidden">
+            <h2>Your GitHub Profile</h2>
+            <div class="profile">
+                <img id="avatar" src="" alt="GitHub Avatar">
+                <div>
+                    <h3 id="username"></h3>
+                    <p>GitHub ID: <span id="github-id"></span></p>
+                    <p><a id="github-url" href="" target="_blank">View on GitHub</a></p>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="repos"></div>
+                    <div>Repositories</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="followers"></div>
+                    <div>Followers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="following"></div>
+                    <div>Following</div>
+                </div>
+            </div>
+            
+            <h2>Career Coaching</h2>
+            <p>Based on your GitHub profile, here are some recommendations to improve your visibility to recruiters:</p>
+            <ul id="recommendations">
+                <li>Complete your profile analysis to get personalized recommendations.</li>
+            </ul>
+            
+            <button id="logout" class="btn">Logout</button>
+        </div>
+        
+        <div id="error-section" class="hidden">
+            <p class="error">Error: <span id="error-message"></span></p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for token in URL or cookie
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            if (token) {
+                // Store token in localStorage
+                localStorage.setItem('gitmax_token', token);
+                // Remove token from URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                // Fetch user profile
+                fetchProfile(token);
+            } else {
+                // Check if token exists in localStorage
+                const storedToken = localStorage.getItem('gitmax_token');
+                if (storedToken) {
+                    fetchProfile(storedToken);
+                }
+            }
+            
+            // Logout button
+            document.getElementById('logout').addEventListener('click', function() {
+                localStorage.removeItem('gitmax_token');
+                document.getElementById('profile-section').classList.add('hidden');
+                document.getElementById('login-section').classList.remove('hidden');
+            });
+        });
+        
+        function fetchProfile(token) {
+            fetch('http://localhost:8000/api/profile', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch profile');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Show profile section
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('profile-section').classList.remove('hidden');
+                
+                // Populate profile data
+                document.getElementById('avatar').src = data.avatar_url;
+                document.getElementById('username').textContent = data.username;
+                document.getElementById('github-id').textContent = data.github_id;
+                document.getElementById('github-url').href = data.github_url;
+                document.getElementById('repos').textContent = data.public_repos;
+                document.getElementById('followers').textContent = data.followers;
+                document.getElementById('following').textContent = data.following;
+            })
+            .catch(error => {
+                document.getElementById('error-section').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+            });
+        }
+    </script>
+</body>
+</html> 

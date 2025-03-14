@@ -103,17 +103,11 @@ async def callback(code: str, request: Request, db: Session = Depends(get_db)):
         expires_delta=access_token_expires,
     )
     
-    # Set token in cookie
-    response = RedirectResponse(url="http://localhost:3000")  # Redirect to frontend
-    response.set_cookie(
-        key="access_token",
-        value=f"Bearer {jwt_token}",
-        httponly=True,
-        max_age=settings.access_token_expire_minutes * 60,
-        expires=settings.access_token_expire_minutes * 60,
-    )
+    # Instead of setting a cookie, include the token in the URL for the frontend
+    frontend_url = f"{settings.frontend_url}?token={jwt_token}"
     
-    return response
+    # Redirect to frontend with token in URL
+    return RedirectResponse(url=frontend_url)
 
 
 @router.get("/logout")

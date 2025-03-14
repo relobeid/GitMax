@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # API
     api_prefix: str = "/api"
     
+    # Frontend
+    frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    
     # CORS
     cors_origins: list = [
         "http://localhost:3000",  # React frontend

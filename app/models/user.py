@@ -48,7 +48,10 @@ class UserInDB(UserBase):
 
 class UserResponse(UserInDB):
     """Model for user data returned in API responses."""
-    pass
+    
+    class Config:
+        orm_mode = True
+        from_attributes = True
 
 
 class Token(BaseModel):
