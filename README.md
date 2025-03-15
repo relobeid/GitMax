@@ -8,43 +8,54 @@ GitMax is a platform that helps developers assess their GitHub profile against j
 - **Profile Analysis**: Analyze repositories, commits, and tech stack
 - **Profile Scoring**: Generate a score based on job roles
 - **Personalized Recommendations**: Get tips to improve your profile
+- **Modern UI**: Beautiful and responsive user interface built with React and Tailwind CSS
 
 ## Tech Stack
 
-- **Backend**: FastAPI, SQLAlchemy, PostgreSQL
+### Backend
+- **Framework**: FastAPI
+- **Database**: PostgreSQL with SQLAlchemy ORM
 - **Authentication**: GitHub OAuth, JWT
 - **API Client**: HTTPX
-- **Frontend** (coming soon): React, Tailwind CSS
+
+### Frontend
+- **Framework**: React
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Routing**: React Router
 
 ## Setup Instructions
 
 ### Prerequisites
 
 - Python 3.8+
+- Node.js 14+
 - PostgreSQL
 - GitHub OAuth App credentials
 
-### 1. Clone the Repository
+### Backend Setup
+
+#### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/yourusername/gitmax.git
 cd gitmax
 ```
 
-### 2. Create a Virtual Environment
+#### 2. Create a Virtual Environment
 
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 3. Install Dependencies
+#### 3. Install Backend Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Set Up GitHub OAuth App
+#### 4. Set Up GitHub OAuth App
 
 1. Go to GitHub Developer Settings: https://github.com/settings/developers
 2. Click "New OAuth App"
@@ -55,7 +66,7 @@ pip install -r requirements.txt
 4. Register the application
 5. Copy the Client ID and generate a Client Secret
 
-### 5. Configure Environment Variables
+#### 5. Configure Environment Variables
 
 Create a `.env` file in the project root with the following variables:
 
@@ -79,19 +90,41 @@ FRONTEND_URL=http://localhost:3000
 
 Replace the placeholder values with your actual credentials.
 
-### 6. Create the Database
+#### 6. Create the Database
 
 ```bash
 createdb gitmax
 ```
 
-### 7. Run the Application
+#### 7. Run the Backend Application
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
 The API will be available at http://localhost:8000.
+
+### Frontend Setup
+
+#### 1. Navigate to the Frontend Directory
+
+```bash
+cd frontend-react
+```
+
+#### 2. Install Frontend Dependencies
+
+```bash
+npm install
+```
+
+#### 3. Run the Frontend Application
+
+```bash
+npm start
+```
+
+The frontend will be available at http://localhost:3000.
 
 ## API Documentation
 
@@ -111,7 +144,7 @@ Once the application is running, you can access the API documentation at:
 
 ```
 gitmax/
-├── app/
+├── app/                # Backend application
 │   ├── models/         # Pydantic models
 │   ├── routers/        # API routes
 │   ├── services/       # Business logic
@@ -119,17 +152,35 @@ gitmax/
 │   ├── auth.py         # Authentication logic
 │   ├── database.py     # Database connection and models
 │   └── main.py         # Application entry point
+├── frontend-react/     # Frontend application
+│   ├── public/         # Static files
+│   ├── src/            # Source code
+│   │   ├── components/ # Reusable components
+│   │   ├── pages/      # Page components
+│   │   ├── App.js      # Main application component
+│   │   └── index.js    # Entry point
+│   ├── package.json    # Dependencies and scripts
+│   └── tailwind.config.js # Tailwind CSS configuration
 ├── .env                # Environment variables
 ├── .gitignore          # Git ignore file
 ├── README.md           # Project documentation
 └── requirements.txt    # Python dependencies
 ```
 
+## Frontend Pages
+
+- **Landing Page**: Introduction to GitMax with features and benefits
+- **Login/Signup**: User authentication with GitHub OAuth
+- **Dashboard**: Overview of GitHub profile with key metrics
+- **Repository Analysis**: Detailed analysis of repositories with recommendations
+- **Profile Scoring**: Profile score based on selected job role with strengths and weaknesses
+
 ## Next Steps
 
-1. Fetch and store GitHub repositories for deeper analysis
-2. Build the frontend login page with React + Tailwind
-3. Implement GitHub profile scoring and recommendations
+1. Connect frontend to backend API
+2. Implement GitHub OAuth flow in the frontend
+3. Fetch real GitHub data for analysis
+4. Deploy the application to production
 
 ## License
 

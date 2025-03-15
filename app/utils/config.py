@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Frontend
     frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
     
+    # OpenAI
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    
     # CORS
     cors_origins: list = [
         "http://localhost:3000",  # React frontend

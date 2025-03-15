@@ -6,7 +6,7 @@ import uvicorn
 import logging
 from app.utils.config import get_settings
 from app.database import create_tables
-from app.routers import auth, profile
+from app.routers import auth, profile, analysis
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +40,7 @@ app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 # Include routers
 app.include_router(auth.router)
 app.include_router(profile.router)
+app.include_router(analysis.router)
 
 
 # Exception handler

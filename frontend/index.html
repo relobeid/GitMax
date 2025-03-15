@@ -72,6 +72,101 @@
             font-weight: bold;
             color: #3498db;
         }
+        .job-role-selector {
+            margin: 20px 0;
+        }
+        .score-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .score-value {
+            font-size: 48px;
+            font-weight: bold;
+            color: #3498db;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .recommendation {
+            background-color: white;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+        .recommendation-number {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            margin-right: 10px;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3498db;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .repo-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .repo-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .repo-languages {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .language-tag {
+            background-color: #f0f0f0;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            border-bottom: 2px solid #3498db;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -109,11 +204,59 @@
                 </div>
             </div>
             
-            <h2>Career Coaching</h2>
-            <p>Based on your GitHub profile, here are some recommendations to improve your visibility to recruiters:</p>
-            <ul id="recommendations">
-                <li>Complete your profile analysis to get personalized recommendations.</li>
-            </ul>
+            <div class="tabs">
+                <div class="tab active" data-tab="career-coaching">Career Coaching</div>
+                <div class="tab" data-tab="repositories">Repositories</div>
+            </div>
+            
+            <div id="career-coaching-tab" class="tab-content active">
+                <h2>Career Coaching</h2>
+                
+                <div class="job-role-selector">
+                    <label for="job-role">Select your target job role:</label>
+                    <select id="job-role">
+                        <option value="frontend-developer">Frontend Developer</option>
+                        <option value="backend-developer">Backend Developer</option>
+                        <option value="fullstack-developer">Fullstack Developer</option>
+                        <option value="data-scientist">Data Scientist</option>
+                        <option value="devops-engineer">DevOps Engineer</option>
+                        <option value="mobile-developer">Mobile Developer</option>
+                    </select>
+                    <button id="analyze-btn" class="btn">Analyze Profile</button>
+                </div>
+                
+                <div id="analysis-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Analyzing your GitHub profile...</p>
+                </div>
+                
+                <div id="score-section" class="hidden">
+                    <div class="score-card">
+                        <h3>Profile Score for <span id="score-job-role"></span></h3>
+                        <div class="score-value" id="profile-score">0</div>
+                        <div id="score-analysis"></div>
+                    </div>
+                    
+                    <h3>Recommendations</h3>
+                    <div id="recommendations-list"></div>
+                </div>
+                
+                <div id="initial-recommendations">
+                    <p>Based on your GitHub profile, here are some recommendations to improve your visibility to recruiters:</p>
+                    <ul>
+                        <li>Complete your profile analysis to get personalized recommendations.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div id="repositories-tab" class="tab-content">
+                <h2>Repository Analysis</h2>
+                <div id="repositories-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Analyzing your repositories...</p>
+                </div>
+                <div id="repositories-list"></div>
+            </div>
             
             <button id="logout" class="btn">Logout</button>
         </div>
@@ -125,6 +268,21 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Tab switching
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Hide all tab content
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                    // Show content for clicked tab
+                    document.getElementById(this.dataset.tab + '-tab').classList.add('active');
+                });
+            });
+            
             // Check for token in URL or cookie
             const urlParams = new URLSearchParams(window.location.search);
             const token = urlParams.get('token');
@@ -143,6 +301,35 @@
                     fetchProfile(storedToken);
                 }
             }
+            
+            // Analyze button
+            document.getElementById('analyze-btn').addEventListener('click', function() {
+                const jobRole = document.getElementById('job-role').value;
+                const token = localStorage.getItem('gitmax_token');
+                
+                if (token) {
+                    // Show loading spinner
+                    document.getElementById('analysis-loading').classList.remove('hidden');
+                    document.getElementById('initial-recommendations').classList.add('hidden');
+                    document.getElementById('score-section').classList.add('hidden');
+                    
+                    // Fetch profile score
+                    fetchProfileScore(token, jobRole);
+                }
+            });
+            
+            // Repository tab click
+            document.querySelector('.tab[data-tab="repositories"]').addEventListener('click', function() {
+                const token = localStorage.getItem('gitmax_token');
+                
+                if (token && document.getElementById('repositories-list').children.length === 0) {
+                    // Show loading spinner
+                    document.getElementById('repositories-loading').classList.remove('hidden');
+                    
+                    // Fetch repositories
+                    fetchRepositories(token);
+                }
+            });
             
             // Logout button
             document.getElementById('logout').addEventListener('click', function() {
@@ -182,6 +369,136 @@
                 document.getElementById('error-section').classList.remove('hidden');
                 document.getElementById('error-message').textContent = error.message;
             });
+        }
+        
+        function fetchProfileScore(token, jobRole) {
+            fetch(`http://localhost:8000/api/analysis/score?job_role=${jobRole}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch profile score');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading spinner
+                document.getElementById('analysis-loading').classList.add('hidden');
+                
+                // Show score section
+                document.getElementById('score-section').classList.remove('hidden');
+                
+                // Populate score data
+                document.getElementById('score-job-role').textContent = formatJobRole(data.job_role);
+                document.getElementById('profile-score').textContent = data.overall_score;
+                document.getElementById('score-analysis').innerHTML = `<p>${data.analysis}</p>`;
+                
+                // Fetch recommendations
+                fetchRecommendations(token, jobRole);
+            })
+            .catch(error => {
+                document.getElementById('analysis-loading').classList.add('hidden');
+                document.getElementById('error-section').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+            });
+        }
+        
+        function fetchRecommendations(token, jobRole) {
+            fetch(`http://localhost:8000/api/analysis/recommendations?job_role=${jobRole}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch recommendations');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Populate recommendations
+                const recommendationsList = document.getElementById('recommendations-list');
+                recommendationsList.innerHTML = '';
+                
+                data.forEach(recommendation => {
+                    const recommendationElement = document.createElement('div');
+                    recommendationElement.className = 'recommendation';
+                    recommendationElement.innerHTML = `
+                        <span class="recommendation-number">${recommendation.id}</span>
+                        <span>${recommendation.text}</span>
+                    `;
+                    recommendationsList.appendChild(recommendationElement);
+                });
+            })
+            .catch(error => {
+                document.getElementById('error-section').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+            });
+        }
+        
+        function fetchRepositories(token) {
+            fetch('http://localhost:8000/api/analysis/repositories', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch repositories');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading spinner
+                document.getElementById('repositories-loading').classList.add('hidden');
+                
+                // Populate repositories
+                const repositoriesList = document.getElementById('repositories-list');
+                repositoriesList.innerHTML = '';
+                
+                data.forEach(repo => {
+                    const repoElement = document.createElement('div');
+                    repoElement.className = 'repo-card';
+                    
+                    // Create languages HTML
+                    let languagesHtml = '';
+                    if (repo.languages && Object.keys(repo.languages).length > 0) {
+                        languagesHtml = '<div class="repo-languages">';
+                        for (const language in repo.languages) {
+                            languagesHtml += `<span class="language-tag">${language}</span>`;
+                        }
+                        languagesHtml += '</div>';
+                    }
+                    
+                    repoElement.innerHTML = `
+                        <div class="repo-name">${repo.repository}</div>
+                        <div class="repo-metrics">
+                            <span>⭐ ${repo.metrics.stars}</span> | 
+                            <span>🍴 ${repo.metrics.forks}</span> | 
+                            <span>⚠️ ${repo.metrics.issues}</span>
+                        </div>
+                        ${languagesHtml}
+                        <div class="repo-analysis">
+                            <p>${repo.analysis}</p>
+                        </div>
+                    `;
+                    repositoriesList.appendChild(repoElement);
+                });
+            })
+            .catch(error => {
+                document.getElementById('repositories-loading').classList.add('hidden');
+                document.getElementById('error-section').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+            });
+        }
+        
+        function formatJobRole(jobRole) {
+            return jobRole
+                .split('-')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
         }
     </script>
 </body>
