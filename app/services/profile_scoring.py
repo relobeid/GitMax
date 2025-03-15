@@ -5,27 +5,69 @@ from app.services.github import GitHubService
 import logging
 import json
 
+# Get application settings from config
 settings = get_settings()
+# Set up logging for this module
 logger = logging.getLogger(__name__)
 
 class ProfileScoringService:
-    """Service for scoring GitHub profiles and generating recommendations using AI."""
+    """
+    Service for scoring GitHub profiles and generating recommendations using AI.
+    
+    This service analyzes a user's GitHub profile and repositories to:
+    1. Score their profile for specific job roles (frontend, backend, etc.)
+    2. Generate personalized recommendations to improve their profile
+    
+    It uses OpenAI's API to perform the analysis, sending repository data
+    and receiving structured feedback that can help users improve their
+    GitHub presence for job applications.
+    
+    The service handles:
+    - Fetching repository data from GitHub
+    - Preparing that data for AI analysis
+    - Processing AI responses into structured feedback
+    - Error handling and fallbacks when AI analysis fails
+    """
     
     @staticmethod
     async def score_profile(username: str, job_role: str, github_token: str = None) -> Dict[str, Any]:
         """
-        Score a GitHub profile for a specific job role.
+        Score a GitHub profile for a specific job role using AI analysis.
+        
+        This method:
+        1. Fetches the user's GitHub repositories
+        2. Sends that data to OpenAI for analysis
+        3. Returns a structured score with strengths and weaknesses
+        
+        The scoring is tailored to the specific job role, so a profile might
+        receive different scores for "frontend" vs "backend" roles based on
+        the repositories and languages used.
         
         Args:
-            username: The GitHub username.
-            job_role: The target job role.
+            username: The GitHub username to analyze.
+            job_role: The target job role (e.g., "frontend", "backend", "devops").
+                      This affects how the profile is scored.
             github_token: Optional GitHub access token for authentication.
+                          Recommended to avoid rate limiting.
             
         Returns:
-            Dict[str, Any]: Profile score data.
+            Dict[str, Any]: A structured response containing:
+                - username: The GitHub username
+                - job_role: The job role that was analyzed
+                - score_data: Detailed scoring information including:
+                    - technical_skills: Score and feedback on technical skills
+                    - project_diversity: Score and feedback on project variety
+                    - code_quality: Score and feedback on code quality
+                    - activity: Score and feedback on GitHub activity
+                    - overall_score: A combined score (0-100)
+                    
+                If an error occurs, returns:
+                - username: The GitHub username
+                - job_role: The job role
+                - error: Error message
         """
         try:
-            # Get user profile
+            # Step 1: Fetch the user's GitHub repositories
             profile = await GitHubService.get_user_repositories(username, access_token=github_token)
             
             if not profile:
@@ -36,15 +78,17 @@ class ProfileScoringService:
                     "error": "Failed to get user repositories"
                 }
             
-            # Calculate score using AI
+            # Step 2: Calculate score using AI analysis
             score_data = await ProfileScoringService._calculate_score_with_ai(username, profile, job_role)
             
+            # Step 3: Return structured response
             return {
                 "username": username,
                 "job_role": job_role,
                 "score_data": score_data
             }
         except Exception as e:
+            # Log and return error information
             logger.error(f"Error scoring profile for user {username}: {str(e)}")
             return {
                 "username": username,
@@ -55,18 +99,42 @@ class ProfileScoringService:
     @staticmethod
     async def generate_recommendations(username: str, job_role: str, github_token: str = None) -> Dict[str, Any]:
         """
-        Generate personalized recommendations for a GitHub profile.
+        Generate personalized recommendations for improving a GitHub profile for a specific job role.
+        
+        This method analyzes a user's GitHub repositories and provides tailored
+        recommendations to help them improve their profile for a specific job role.
+        It uses AI to generate actionable suggestions in several categories:
+        
+        - Technical Skills: Languages or frameworks to learn
+        - Project Diversity: Types of projects to create
+        - Code Quality: How to improve code organization and documentation
+        - GitHub Profile: How to enhance profile presentation
+        
+        The recommendations are specific to the job role, so recommendations for
+        a "frontend" role will differ from those for a "backend" or "data" role.
         
         Args:
-            username: The GitHub username.
-            job_role: The target job role.
+            username: The GitHub username to generate recommendations for.
+            job_role: The target job role (e.g., "frontend", "backend", "devops").
+                      This affects what recommendations are provided.
             github_token: Optional GitHub access token for authentication.
+                          Recommended to avoid rate limiting.
             
         Returns:
-            Dict[str, Any]: Recommendations data.
+            Dict[str, Any]: A structured response containing:
+                - username: The GitHub username
+                - job_role: The job role that was analyzed
+                - recommendations: A list of recommendation objects, each with:
+                    - category: The recommendation category
+                    - text: The specific recommendation text
+                    
+                If an error occurs, returns:
+                - username: The GitHub username
+                - job_role: The job role
+                - error: Error message
         """
         try:
-            # Get user profile and repositories
+            # Step 1: Fetch the user's GitHub repositories
             repositories = await GitHubService.get_user_repositories(username, access_token=github_token)
             
             if not repositories:
@@ -77,15 +145,17 @@ class ProfileScoringService:
                     "error": "Failed to get user repositories"
                 }
             
-            # Generate recommendations using AI
+            # Step 2: Generate recommendations using AI
             recommendations = await ProfileScoringService._generate_recommendations_with_ai(username, repositories, job_role)
             
+            # Step 3: Return structured response
             return {
                 "username": username,
                 "job_role": job_role,
                 "recommendations": recommendations
             }
         except Exception as e:
+            # Log and return error information
             logger.error(f"Error generating recommendations for user {username}: {str(e)}")
             return {
                 "username": username,
@@ -96,31 +166,54 @@ class ProfileScoringService:
     @staticmethod
     async def _calculate_score_with_ai(username: str, repositories: List[Dict[str, Any]], job_role: str) -> Dict[str, Any]:
         """
-        Calculate profile score based on job role using AI.
+        Calculate profile score based on job role using OpenAI's API.
+        
+        This is an internal method that handles the AI analysis portion of profile scoring.
+        It takes repository data, formats it into a prompt for the AI model, and processes
+        the response into a structured scoring object.
+        
+        The method:
+        1. Analyzes the languages used across repositories
+        2. Constructs a detailed prompt with repository information
+        3. Sends the prompt to OpenAI's API
+        4. Parses the JSON response into a structured scoring object
+        5. Provides fallback values if the AI analysis fails
+        
+        The scoring is based on several categories:
+        - Technical Skills: Proficiency in relevant programming languages/frameworks
+        - Project Diversity: Variety and breadth of projects
+        - Code Quality: Code organization, documentation, and best practices
+        - Activity: Frequency and recency of contributions
         
         Args:
-            username: The GitHub username.
-            repositories: The user's repositories.
-            job_role: The target job role.
+            username: The GitHub username being analyzed.
+            repositories: List of repository objects from the GitHub API.
+            job_role: The target job role for tailoring the analysis.
             
         Returns:
-            Dict[str, Any]: Score data.
+            Dict[str, Any]: A structured scoring object containing:
+                - technical_skills: Score and feedback on technical skills
+                - project_diversity: Score and feedback on project variety
+                - code_quality: Score and feedback on code quality
+                - activity: Score and feedback on GitHub activity
+                - overall_score: A combined score (0-100)
+                - raw_analysis: The full text response from the AI
         """
         try:
-            # Configure OpenAI client
+            # Step 1: Configure OpenAI client with API key from settings
             client = openai.OpenAI(api_key=settings.openai_api_key)
             
-            # Prepare data for scoring
+            # Step 2: Analyze languages used across repositories
             languages = {}
             for repo in repositories:
                 lang = repo.get("language")
                 if lang:
                     languages[lang] = languages.get(lang, 0) + 1
             
-            # Sort languages by frequency
+            # Sort languages by frequency (most used first)
             sorted_languages = sorted(languages.items(), key=lambda x: x[1], reverse=True)
             
-            # Prepare prompt
+            # Step 3: Prepare detailed prompt for AI analysis
             prompt = f"""
             GitHub Profile Scoring Request:
             
@@ -213,31 +306,50 @@ class ProfileScoringService:
     @staticmethod
     async def _generate_recommendations_with_ai(username: str, repositories: List[Dict[str, Any]], job_role: str) -> List[Dict[str, Any]]:
         """
-        Generate personalized recommendations based on profile using AI.
+        Generate personalized recommendations for GitHub profile improvement using OpenAI's API.
+        
+        This is an internal method that handles the AI analysis portion of recommendation generation.
+        It takes repository data, formats it into a prompt for the AI model, and processes
+        the response into a structured list of actionable recommendations.
+        
+        The method:
+        1. Analyzes the languages used across repositories
+        2. Constructs a detailed prompt with repository information
+        3. Sends the prompt to OpenAI's API requesting JSON output
+        4. Parses the JSON response into a structured list of recommendations
+        5. Provides fallback recommendations if the AI analysis fails
+        
+        The recommendations are organized into categories:
+        - Technical Skills: Languages or frameworks to learn
+        - Project Diversity: Types of projects to create
+        - Code Quality: How to improve code organization and documentation
+        - GitHub Profile: How to enhance profile presentation
         
         Args:
-            username: The GitHub username.
-            repositories: The user's repositories.
-            job_role: The target job role.
+            username: The GitHub username being analyzed.
+            repositories: List of repository objects from the GitHub API.
+            job_role: The target job role for tailoring the recommendations.
             
         Returns:
-            List[Dict[str, Any]]: List of recommendations.
+            List[Dict[str, Any]]: A list of recommendation objects, each containing:
+                - category: The recommendation category
+                - text: The specific recommendation text
         """
         try:
-            # Configure OpenAI client
+            # Step 1: Configure OpenAI client with API key from settings
             client = openai.OpenAI(api_key=settings.openai_api_key)
             
-            # Prepare data for recommendations
+            # Step 2: Analyze languages used across repositories
             languages = {}
             for repo in repositories:
                 lang = repo.get("language")
                 if lang:
                     languages[lang] = languages.get(lang, 0) + 1
             
-            # Sort languages by frequency
+            # Sort languages by frequency (most used first)
             sorted_languages = sorted(languages.items(), key=lambda x: x[1], reverse=True)
             
-            # Prepare prompt
+            # Step 3: Prepare detailed prompt for AI analysis
             prompt = f"""
             GitHub Profile Recommendations Request:
             
