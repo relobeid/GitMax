@@ -4,6 +4,9 @@ from app.utils.config import get_settings
 from app.database import get_db, User
 from app.auth import get_current_user
 from app.models.user import UserResponse, UserUpdate
+from app.services.github import GitHubService
+from typing import List, Dict, Any
+import httpx
 
 settings = get_settings()
 
@@ -25,6 +28,38 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         UserResponse: The user's profile.
     """
     return current_user
+
+
+@router.get("/github")
+async def get_github_profile(current_user: User = Depends(get_current_user)):
+    """
+    Get the authenticated user's detailed GitHub profile.
+    
+    Args:
+        current_user: The authenticated user.
+        
+    Returns:
+        Dict[str, Any]: The user's detailed GitHub profile.
+    """
+    try:
+        # Fetch the user's detailed GitHub profile using their GitHub token
+        profile = await GitHubService.get_user_profile(
+            current_user.username, 
+            access_token=current_user.github_token
+        )
+        
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="GitHub profile not found"
+            )
+        
+        return profile
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch GitHub profile: {str(e)}"
+        )
 
 
 @router.put("", response_model=UserResponse)
@@ -52,3 +87,54 @@ async def update_profile(
     db.refresh(current_user)
     
     return current_user
+
+
+@router.get("/repositories", response_model=List[Dict[str, Any]])
+async def get_repositories(current_user: User = Depends(get_current_user)):
+    """
+    Get the authenticated user's GitHub repositories.
+    
+    Args:
+        current_user: The authenticated user.
+        
+    Returns:
+        List[Dict[str, Any]]: The user's GitHub repositories.
+    """
+    # Fetch the user's repositories from GitHub using their GitHub token
+    repositories = await GitHubService.get_user_repositories(
+        current_user.username,
+        access_token=current_user.github_token
+    )
+    return repositories
+
+
+@router.get("/activity")
+async def get_activity(current_user: User = Depends(get_current_user)):
+    """
+    Get the authenticated user's recent GitHub activity.
+    
+    Args:
+        current_user: The authenticated user.
+        
+    Returns:
+        List[Dict[str, Any]]: The user's recent GitHub activity.
+    """
+    try:
+        # Fetch the user's detailed GitHub profile using their GitHub token
+        profile = await GitHubService.get_user_profile(
+            current_user.username,
+            access_token=current_user.github_token
+        )
+        
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="GitHub profile not found"
+            )
+        
+        return profile.get("recent_activity", [])
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch GitHub activity: {str(e)}"
+        )

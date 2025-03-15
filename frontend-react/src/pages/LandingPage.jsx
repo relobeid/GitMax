@@ -3,6 +3,12 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
 const LandingPage = () => {
+  // Function to handle clicks on links that aren't implemented yet
+  const handleNotImplemented = (e) => {
+    e.preventDefault();
+    alert('This feature is coming soon!');
+  };
+
   return (
     <div className="bg-gradient-to-br from-gray-900 to-black min-h-screen text-white">
       {/* Hero Section */}
@@ -22,7 +28,7 @@ const LandingPage = () => {
           <div className="hidden md:flex space-x-8">
             <a href="#features" className="hover:text-purple-400 transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-purple-400 transition-colors">How It Works</a>
-            <a href="#about" className="hover:text-purple-400 transition-colors">About</a>
+            <a href="#" onClick={handleNotImplemented} className="hover:text-purple-400 transition-colors">About</a>
           </div>
           <div className="flex space-x-4">
             <Link to="/login" className="px-4 py-2 rounded border border-purple-500 hover:bg-purple-500 hover:text-white transition-colors">
@@ -262,9 +268,9 @@ const LandingPage = () => {
               <p className="text-gray-500 mt-2">© 2023 GitMax. All rights reserved.</p>
             </div>
             <div className="flex space-x-8">
-              <a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Privacy Policy</a>
-              <a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Terms of Service</a>
-              <a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Contact</a>
+              <a href="#" onClick={handleNotImplemented} className="text-gray-400 hover:text-purple-400 transition-colors">Privacy Policy</a>
+              <a href="#" onClick={handleNotImplemented} className="text-gray-400 hover:text-purple-400 transition-colors">Terms of Service</a>
+              <a href="#" onClick={handleNotImplemented} className="text-gray-400 hover:text-purple-400 transition-colors">Contact</a>
             </div>
           </div>
         </div>

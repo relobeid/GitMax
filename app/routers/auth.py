@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from app.utils.config import get_settings
 from app.database import get_db, User
 from app.services.github import GitHubService
-from app.auth import create_access_token
-from app.models.user import Token
+from app.auth import create_access_token, get_current_user
+from app.models.user import Token, UserResponse
+from typing import Dict, Any
 
 settings = get_settings()
 
@@ -19,10 +20,10 @@ router = APIRouter(
 @router.get("/login")
 async def login():
     """
-    Redirect to GitHub OAuth login page.
+    Get GitHub OAuth login URL.
     
     Returns:
-        RedirectResponse: Redirect to GitHub OAuth login page.
+        dict: GitHub OAuth login URL.
     """
     github_auth_url = (
         f"https://github.com/login/oauth/authorize"
@@ -30,11 +31,12 @@ async def login():
         f"&redirect_uri={settings.github_redirect_uri}"
         f"&scope=user:email"
     )
-    return RedirectResponse(url=github_auth_url)
+    return {"url": github_auth_url}
 
 
+@router.post("/callback")
 @router.get("/callback")
-async def callback(code: str, request: Request, db: Session = Depends(get_db)):
+async def callback(code: str, request: Request = None, db: Session = Depends(get_db)):
     """
     GitHub OAuth callback endpoint.
     
@@ -44,7 +46,7 @@ async def callback(code: str, request: Request, db: Session = Depends(get_db)):
         db: The database session.
         
     Returns:
-        RedirectResponse: Redirect to frontend with token.
+        dict or RedirectResponse: User data and access token or redirect to frontend.
     """
     # Exchange code for access token
     access_token = await GitHubService.get_access_token(code)
@@ -80,6 +82,7 @@ async def callback(code: str, request: Request, db: Session = Depends(get_db)):
             followers=user_create.followers,
             following=user_create.following,
             github_url=user_create.github_url,
+            github_token=access_token,
         )
         db.add(user)
         db.commit()
@@ -93,6 +96,7 @@ async def callback(code: str, request: Request, db: Session = Depends(get_db)):
         user.followers = github_user.get("followers", 0)
         user.following = github_user.get("following", 0)
         user.github_url = github_user.get("html_url")
+        user.github_token = access_token
         db.commit()
         db.refresh(user)
     
@@ -103,23 +107,84 @@ async def callback(code: str, request: Request, db: Session = Depends(get_db)):
         expires_delta=access_token_expires,
     )
     
-    # Instead of setting a cookie, include the token in the URL for the frontend
-    frontend_url = f"{settings.frontend_url}?token={jwt_token}"
-    
-    # Redirect to frontend with token in URL
-    return RedirectResponse(url=frontend_url)
+    # Check if this is a browser redirect (GET request) or API call (POST request)
+    if request and request.method == "GET":
+        # For browser redirects, redirect to frontend with token in URL
+        frontend_url = f"{settings.frontend_url}?token={jwt_token}"
+        return RedirectResponse(url=frontend_url)
+    else:
+        # For API calls, return JSON response
+        return {
+            "access_token": jwt_token,
+            "token_type": "bearer",
+            "user": {
+                "id": user.id,
+                "github_id": user.github_id,
+                "username": user.username,
+                "email": user.email,
+                "avatar_url": user.avatar_url,
+                "public_repos": user.public_repos,
+                "followers": user.followers,
+                "following": user.following,
+                "github_url": user.github_url,
+            }
+        }
 
 
-@router.get("/logout")
-async def logout(response: Response):
+@router.post("/logout")
+async def logout():
     """
     Logout endpoint.
     
-    Args:
-        response: The response object.
-        
     Returns:
         dict: Success message.
     """
-    response.delete_cookie(key="access_token")
-    return {"message": "Successfully logged out"}
+    # Since we're using JWT tokens, we don't need to do anything server-side
+    # The client will remove the token from storage
+    return {"message": "Successfully logged out", "success": True}
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """
+    Get current user info.
+    
+    Args:
+        current_user: The current authenticated user.
+        
+    Returns:
+        UserResponse: The current user info.
+    """
+    return UserResponse(
+        id=current_user.id,
+        github_id=current_user.github_id,
+        username=current_user.username,
+        email=current_user.email,
+        avatar_url=current_user.avatar_url,
+        public_repos=current_user.public_repos,
+        followers=current_user.followers,
+        following=current_user.following,
+        github_url=current_user.github_url,
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+        is_active=current_user.is_active
+    )
+
+
+@router.post("/refresh")
+async def refresh_token(current_user: User = Depends(get_current_user)):
+    """
+    Refresh access token.
+    
+    Args:
+        current_user: The current authenticated user.
+        
+    Returns:
+        Token: The new access token.
+    """
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = create_access_token(
+        data={"sub": current_user.github_id},
+        expires_delta=access_token_expires,
+    )
+    return {"access_token": access_token, "token_type": "bearer"}

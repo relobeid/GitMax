@@ -28,6 +28,7 @@ class User(Base):
     followers = Column(Integer, default=0)
     following = Column(Integer, default=0)
     github_url = Column(String, nullable=True)
+    github_token = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = Column(Boolean, default=True)

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import GitHubService from '../services/github';
 
 const ProfileScoring = () => {
   const [jobRoles, setJobRoles] = useState([
@@ -15,22 +16,59 @@ const ProfileScoring = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [profileScore, setProfileScore] = useState(null);
+  const [error, setError] = useState(null);
 
-  const handleRoleSelect = (role) => {
+  const handleRoleSelect = async (role) => {
     setSelectedRole(role);
     setIsLoading(true);
+    setError(null);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // Fetch real profile scoring data from the API
+      const scoreData = await GitHubService.getProfileScoring(role.id);
+      console.log("Raw score data:", scoreData);
+      
+      // Extract the score_data from the response
+      const rawScoreData = scoreData?.score_data || {};
+      
+      // Ensure the data has the expected structure
+      const processedData = {
+        overall: rawScoreData?.overall_score || 0,
+        categories: [
+          { name: 'Technical Skills', score: rawScoreData?.technical_skills?.score || 0 },
+          { name: 'Project Diversity', score: rawScoreData?.project_diversity?.score || 0 },
+          { name: 'Code Quality', score: rawScoreData?.code_quality?.score || 0 },
+          { name: 'Activity', score: rawScoreData?.activity?.score || 0 }
+        ],
+        strengths: [
+          ...(rawScoreData?.technical_skills?.strengths || []),
+          ...(rawScoreData?.project_diversity?.strengths || []),
+          ...(rawScoreData?.code_quality?.strengths || []),
+          ...(rawScoreData?.activity?.strengths || [])
+        ].filter(item => !item.includes("Unable to analyze")),
+        weaknesses: [
+          ...(rawScoreData?.technical_skills?.weaknesses || []),
+          ...(rawScoreData?.project_diversity?.weaknesses || []),
+          ...(rawScoreData?.code_quality?.weaknesses || []),
+          ...(rawScoreData?.activity?.weaknesses || [])
+        ].filter(item => !item.includes("Unable to analyze")),
+        recommendations: scoreData?.recommendations || []
+      };
+      
+      console.log("Processed score data:", processedData);
+      setProfileScore(processedData);
+    } catch (err) {
+      console.error('Failed to fetch profile score:', err);
+      setError('Failed to fetch profile score. Please try again.');
+      
+      // Fallback to mock data if API fails
       setProfileScore({
         overall: 78,
         categories: [
           { name: 'Technical Skills', score: 82 },
           { name: 'Project Diversity', score: 75 },
           { name: 'Code Quality', score: 85 },
-          { name: 'Collaboration', score: 70 },
-          { name: 'Documentation', score: 65 }
+          { name: 'Activity', score: 70 }
         ],
         strengths: [
           'Strong JavaScript and React skills',
@@ -50,8 +88,49 @@ const ProfileScoring = () => {
           'Create a technical blog to share your knowledge'
         ]
       });
-    }, 2000);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  // Function to fetch recommendations separately
+  const fetchRecommendations = async (roleId) => {
+    if (!roleId) return;
+    
+    try {
+      const recommendationsData = await GitHubService.getRecommendations(roleId);
+      console.log("Raw recommendations data:", recommendationsData);
+      
+      // Extract the recommendations from the response
+      const recommendations = recommendationsData?.recommendations || [];
+      
+      // Format recommendations as strings if they're objects
+      const formattedRecommendations = recommendations.map(rec => {
+        if (typeof rec === 'string') return rec;
+        if (typeof rec === 'object' && rec.text) return rec.text;
+        return JSON.stringify(rec);
+      });
+      
+      // Update the profile score with the new recommendations
+      setProfileScore(prevScore => {
+        if (!prevScore) return prevScore;
+        return {
+          ...prevScore,
+          recommendations: formattedRecommendations
+        };
+      });
+    } catch (err) {
+      console.error('Failed to fetch recommendations:', err);
+      // We don't set an error here as this is a secondary fetch
+    }
+  };
+
+  // When a role is selected and profile score is loaded, fetch recommendations
+  useEffect(() => {
+    if (selectedRole && profileScore && !isLoading) {
+      fetchRecommendations(selectedRole.id);
+    }
+  }, [selectedRole, profileScore, isLoading]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
@@ -98,6 +177,15 @@ const ProfileScoring = () => {
             </p>
           </div>
         </motion.div>
+
+        {/* Error message */}
+        {error && (
+          <div className="mt-4 px-4 sm:px-0">
+            <div className="p-3 bg-red-900/50 border border-red-500 text-red-200 rounded-md text-sm">
+              {error}
+            </div>
+          </div>
+        )}
 
         <div className="mt-8 px-4 sm:px-0">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -188,12 +276,12 @@ const ProfileScoring = () => {
                             fill="none"
                             stroke="#8B5CF6"
                             strokeWidth="3"
-                            strokeDasharray={`${profileScore.overall}, 100`}
+                            strokeDasharray={`${profileScore.overall || 0}, 100`}
                           />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-center">
-                            <div className="text-3xl font-bold text-white">{profileScore.overall}</div>
+                            <div className="text-3xl font-bold text-white">{profileScore.overall || 0}</div>
                             <div className="text-sm text-gray-400">Overall Score</div>
                           </div>
                         </div>
@@ -203,7 +291,7 @@ const ProfileScoring = () => {
                     {/* Category Scores */}
                     <h4 className="text-md font-medium text-white mb-3">Category Scores</h4>
                     <div className="space-y-4 mb-6">
-                      {profileScore.categories.map((category, index) => (
+                      {(profileScore.categories || []).map((category, index) => (
                         <div key={index}>
                           <div className="flex justify-between items-center mb-1">
                             <span className="text-sm text-gray-300">{category.name}</span>
@@ -223,17 +311,25 @@ const ProfileScoring = () => {
                       <div>
                         <h4 className="text-md font-medium text-white mb-2">Strengths</h4>
                         <ul className="list-disc pl-5 space-y-1">
-                          {profileScore.strengths.map((strength, index) => (
-                            <li key={index} className="text-sm text-gray-300">{strength}</li>
-                          ))}
+                          {(profileScore.strengths || []).length > 0 ? (
+                            (profileScore.strengths || []).map((strength, index) => (
+                              <li key={index} className="text-sm text-gray-300">{strength}</li>
+                            ))
+                          ) : (
+                            <li className="text-sm text-gray-300">No strengths identified</li>
+                          )}
                         </ul>
                       </div>
                       <div>
                         <h4 className="text-md font-medium text-white mb-2">Areas for Improvement</h4>
                         <ul className="list-disc pl-5 space-y-1">
-                          {profileScore.weaknesses.map((weakness, index) => (
-                            <li key={index} className="text-sm text-gray-300">{weakness}</li>
-                          ))}
+                          {(profileScore.weaknesses || []).length > 0 ? (
+                            (profileScore.weaknesses || []).map((weakness, index) => (
+                              <li key={index} className="text-sm text-gray-300">{weakness}</li>
+                            ))
+                          ) : (
+                            <li className="text-sm text-gray-300">No areas for improvement identified</li>
+                          )}
                         </ul>
                       </div>
                     </div>
@@ -242,14 +338,23 @@ const ProfileScoring = () => {
                       <h4 className="text-md font-medium text-white mb-2">Recommendations</h4>
                       <div className="bg-gray-800 rounded-lg p-4">
                         <ul className="space-y-2">
-                          {profileScore.recommendations.map((recommendation, index) => (
-                            <li key={index} className="flex items-start">
+                          {(profileScore.recommendations || []).length > 0 ? (
+                            (profileScore.recommendations || []).map((recommendation, index) => (
+                              <li key={index} className="flex items-start">
+                                <svg className="h-5 w-5 text-purple-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm text-gray-300">{recommendation}</span>
+                              </li>
+                            ))
+                          ) : (
+                            <li className="flex items-start">
                               <svg className="h-5 w-5 text-purple-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                               </svg>
-                              <span className="text-sm text-gray-300">{recommendation}</span>
+                              <span className="text-sm text-gray-300">No recommendations available</span>
                             </li>
-                          ))}
+                          )}
                         </ul>
                       </div>
                     </div>

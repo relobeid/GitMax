@@ -7,6 +7,7 @@ import logging
 from app.utils.config import get_settings
 from app.database import create_tables
 from app.routers import auth, profile, analysis
+from app.migrate import migrate_database
 
 # Configure logging
 logging.basicConfig(
@@ -28,7 +29,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["http://localhost:3000"],  # Specify the exact frontend origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -97,6 +98,13 @@ async def startup_event():
     Startup event.
     """
     logger.info("Starting up GitMax API")
+    # Run database migrations
+    migration_success = migrate_database()
+    if migration_success:
+        logger.info("Database migrations completed successfully")
+    else:
+        logger.warning("Database migrations failed, proceeding with startup anyway")
+    # Create tables
     create_tables()
 
 

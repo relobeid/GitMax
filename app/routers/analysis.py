@@ -28,12 +28,11 @@ async def analyze_repositories(current_user: User = Depends(get_current_user)):
         List[Dict[str, Any]]: Analysis results for all repositories.
     """
     try:
-        # Get GitHub access token (in a real app, we'd store this or have a refresh mechanism)
-        # For this demo, we'll simulate having the token
-        access_token = "simulated_access_token"  # In production, get this from a secure source
-        
-        # Analyze repositories
-        analysis_results = await RepositoryAnalysisService.analyze_all_repositories(access_token)
+        # Analyze repositories using the enhanced service with GitHub token
+        analysis_results = await RepositoryAnalysisService.analyze_all_repositories(
+            current_user.username,
+            github_token=current_user.github_token
+        )
         
         return analysis_results
     except Exception as e:
@@ -43,11 +42,41 @@ async def analyze_repositories(current_user: User = Depends(get_current_user)):
         )
 
 
-@router.get("/score")
+@router.get("/repository/{repo_name}")
+async def analyze_repository(
+    repo_name: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Analyze a specific repository.
+    
+    Args:
+        repo_name: The name of the repository to analyze.
+        current_user: The authenticated user.
+        
+    Returns:
+        Dict[str, Any]: Analysis results for the repository.
+    """
+    try:
+        # Analyze the repository using the enhanced service with GitHub token
+        analysis_result = await RepositoryAnalysisService.analyze_repository(
+            current_user.username,
+            repo_name,
+            github_token=current_user.github_token
+        )
+        
+        return analysis_result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to analyze repository: {str(e)}"
+        )
+
+
+@router.get("/profile-scoring")
 async def get_profile_score(
     job_role: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get the authenticated user's profile score for a specific job role.
@@ -55,34 +84,16 @@ async def get_profile_score(
     Args:
         job_role: The target job role.
         current_user: The authenticated user.
-        db: The database session.
         
     Returns:
         Dict[str, Any]: Profile score data.
     """
     try:
-        # Get GitHub access token (in a real app, we'd store this or have a refresh mechanism)
-        # For this demo, we'll simulate having the token
-        access_token = "simulated_access_token"  # In production, get this from a secure source
-        
-        # Get user data
-        user_data = {
-            "username": current_user.username,
-            "github_id": current_user.github_id,
-            "public_repos": current_user.public_repos,
-            "followers": current_user.followers,
-            "following": current_user.following,
-            "github_url": current_user.github_url
-        }
-        
-        # Analyze repositories
-        repositories_analysis = await RepositoryAnalysisService.analyze_all_repositories(access_token)
-        
-        # Calculate score
-        score_data = await ProfileScoringService.calculate_score(
-            user_data,
-            repositories_analysis,
-            job_role
+        # Score the profile using the enhanced service with GitHub token
+        score_data = await ProfileScoringService.score_profile(
+            current_user.username,
+            job_role,
+            github_token=current_user.github_token
         )
         
         return score_data
@@ -96,8 +107,7 @@ async def get_profile_score(
 @router.get("/recommendations")
 async def get_recommendations(
     job_role: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get personalized recommendations for the authenticated user.
@@ -105,41 +115,16 @@ async def get_recommendations(
     Args:
         job_role: The target job role.
         current_user: The authenticated user.
-        db: The database session.
         
     Returns:
         List[Dict[str, Any]]: Personalized recommendations.
     """
     try:
-        # Get GitHub access token (in a real app, we'd store this or have a refresh mechanism)
-        # For this demo, we'll simulate having the token
-        access_token = "simulated_access_token"  # In production, get this from a secure source
-        
-        # Get user data
-        user_data = {
-            "username": current_user.username,
-            "github_id": current_user.github_id,
-            "public_repos": current_user.public_repos,
-            "followers": current_user.followers,
-            "following": current_user.following,
-            "github_url": current_user.github_url
-        }
-        
-        # Analyze repositories
-        repositories_analysis = await RepositoryAnalysisService.analyze_all_repositories(access_token)
-        
-        # Calculate score
-        score_data = await ProfileScoringService.calculate_score(
-            user_data,
-            repositories_analysis,
-            job_role
-        )
-        
-        # Generate recommendations
+        # Generate recommendations using the enhanced service with GitHub token
         recommendations = await ProfileScoringService.generate_recommendations(
-            user_data,
-            score_data,
-            repositories_analysis
+            current_user.username,
+            job_role,
+            github_token=current_user.github_token
         )
         
         return recommendations
