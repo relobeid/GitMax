@@ -1,6 +1,23 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    github_id: str
+    github_username: str
+    created_at: datetime
+    updated_at: datetime
+    is_active: bool
+
+    class Config:
+        from_attributes = True
 
 
 class UserBase(BaseModel):
@@ -44,20 +61,6 @@ class UserInDB(UserBase):
 
     class Config:
         orm_mode = True
-
-
-class UserResponse(UserInDB):
-    """Model for user data returned in API responses."""
-    
-    class Config:
-        orm_mode = True
-        from_attributes = True
-
-
-class Token(BaseModel):
-    """Model for JWT token."""
-    access_token: str
-    token_type: str = "bearer"
 
 
 class TokenData(BaseModel):

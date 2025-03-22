@@ -1,12 +1,26 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const LandingPage = () => {
+  const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
+
   // Function to handle clicks on links that aren't implemented yet
   const handleNotImplemented = (e) => {
     e.preventDefault();
     alert('This feature is coming soon!');
+  };
+
+  // Function to handle logo click
+  const handleLogoClick = (e) => {
+    e.preventDefault();
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    } else {
+      navigate('/');
+    }
   };
 
   return (
@@ -19,6 +33,8 @@ const LandingPage = () => {
               initial={{ rotate: -10, scale: 0.9 }}
               animate={{ rotate: 0, scale: 1 }}
               transition={{ duration: 0.5 }}
+              onClick={handleLogoClick}
+              className="cursor-pointer"
             >
               <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-purple-600">
                 GitMax
@@ -31,12 +47,28 @@ const LandingPage = () => {
             <a href="#" onClick={handleNotImplemented} className="hover:text-purple-400 transition-colors">About</a>
           </div>
           <div className="flex space-x-4">
-            <Link to="/login" className="px-4 py-2 rounded border border-purple-500 hover:bg-purple-500 hover:text-white transition-colors">
-              Login
-            </Link>
-            <Link to="/signup" className="px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 transition-colors">
-              Sign Up
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link to="/dashboard" className="px-4 py-2 rounded border border-purple-500 hover:bg-purple-500 hover:text-white transition-colors">
+                  Dashboard
+                </Link>
+                <button
+                  onClick={logout}
+                  className="px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 transition-colors"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="px-4 py-2 rounded border border-purple-500 hover:bg-purple-500 hover:text-white transition-colors">
+                  Login with GitHub
+                </Link>
+                <Link to="/signup" className="px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 transition-colors">
+                  Sign Up with GitHub
+                </Link>
+              </>
+            )}
           </div>
         </nav>
 

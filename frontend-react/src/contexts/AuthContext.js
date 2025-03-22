@@ -13,27 +13,36 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [recentAccounts, setRecentAccounts] = useState([]);
 
-  // Load user on mount
+  // Load user and recent accounts on mount
   useEffect(() => {
-    const loadUser = async () => {
+    const loadUserAndAccounts = async () => {
       try {
-        // Check if user is authenticated
-        if (AuthService.isAuthenticated()) {
+        // Get recent accounts
+        const accounts = AuthService.getRecentGitHubAccounts();
+        setRecentAccounts(accounts);
+        
+        const token = localStorage.getItem('token');
+        // Check if token exists
+        if (token) {
           const userData = await AuthService.getCurrentUser();
           setUser(userData);
+        } else {
+          setUser(null);
         }
       } catch (err) {
         console.error('Failed to load user:', err);
-        setError('Failed to load user. Please try again.');
+        setError(err.response?.data?.detail || err.message || 'Failed to load user. Please try again.');
         // Clear token if there's an error
         AuthService.logout();
+        setUser(null);
       } finally {
         setLoading(false);
       }
     };
 
-    loadUser();
+    loadUserAndAccounts();
   }, []);
 
   /**
@@ -42,10 +51,10 @@ export const AuthProvider = ({ children }) => {
   const loginWithGitHub = async () => {
     try {
       const url = await AuthService.initiateGitHubLogin();
-      window.location.href = url;
+      // The redirect happens in the service now
     } catch (err) {
       console.error('Failed to login with GitHub:', err);
-      setError('Failed to login with GitHub. Please try again.');
+      setError(err.response?.data?.detail || err.message || 'Failed to login with GitHub. Please try again.');
       throw err;
     }
   };
@@ -56,60 +65,61 @@ export const AuthProvider = ({ children }) => {
    */
   const handleGitHubCallback = async (code) => {
     try {
-      setLoading(true);
-      const { user: userData } = await AuthService.handleGitHubCallback(code);
-      setUser(userData);
-      return userData;
+      const { token, user: userData } = await AuthService.handleGitHubCallback(code);
+      
+      if (userData) {
+        setUser(userData);
+        
+        // Refresh recent accounts list
+        const accounts = AuthService.getRecentGitHubAccounts();
+        setRecentAccounts(accounts);
+      }
+      
+      return { token, user: userData };
     } catch (err) {
       console.error('Failed to handle GitHub callback:', err);
-      setError('Failed to complete GitHub authentication. Please try again.');
+      setError(err.response?.data?.detail || err.message || 'Failed to complete GitHub authentication.');
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
   /**
-   * Logout the current user
+   * Logout user
    */
   const logout = async () => {
     try {
-      // Set user to null first to immediately update UI
-      setUser(null);
       await AuthService.logout();
+      setUser(null);
+      // Redirect to home page
+      window.location.href = '/';
     } catch (err) {
       console.error('Failed to logout:', err);
-      setError('Failed to logout. Please try again.');
-      // User is still set to null, so the UI will show logged out state
+      // Still clear local state even if server logout fails
+      setUser(null);
+      window.location.href = '/';
     }
   };
 
-  /**
-   * Clear any authentication errors
-   */
-  const clearError = () => {
-    setError(null);
-  };
-
-  // Context value
+  // Provide auth context value
   const value = {
     user,
     loading,
     error,
-    isAuthenticated: !!user,
+    recentAccounts,
     loginWithGitHub,
     handleGitHubCallback,
     logout,
-    clearError,
+    isAuthenticated: !!user,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 };
 
-/**
- * Hook to use the authentication context
- * @returns {Object} Authentication context
- */
+// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

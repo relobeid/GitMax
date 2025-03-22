@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import GitHubAccountSelector from '../components/GitHubAccountSelector';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
-  const { loginWithGitHub, isAuthenticated, error, clearError } = useAuth();
+  const { loginWithGitHub, isAuthenticated, recentAccounts } = useAuth();
+  const [showAccountSelector, setShowAccountSelector] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -20,40 +18,31 @@ const Login = () => {
     }
   }, [isAuthenticated, navigate, location]);
 
-  // Set error message from auth context
-  useEffect(() => {
-    if (error) {
-      setErrorMessage(error);
-      clearError();
-    }
-  }, [error, clearError]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage('');
-    
-    try {
-      // In a real implementation, this would call your API
-      // For now, we'll just simulate a login
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate('/dashboard');
-      }, 1500);
-    } catch (err) {
-      setErrorMessage('Invalid email or password. Please try again.');
-      setIsLoading(false);
-    }
+  const handleAccountSelect = (account) => {
+    // Store the selected account to localStorage to remember it
+    localStorage.setItem('selectedGitHubAccount', account.github_username);
+    // Hide the selector
+    setShowAccountSelector(false);
+    // Proceed with GitHub login
+    loginWithGitHub();
   };
 
-  const handleGitHubLogin = async () => {
-    try {
-      setIsLoading(true);
-      setErrorMessage('');
-      await loginWithGitHub();
-    } catch (err) {
-      setErrorMessage('Failed to login with GitHub. Please try again.');
-      setIsLoading(false);
+  const handleNewAccount = () => {
+    // Hide the selector
+    setShowAccountSelector(false);
+    // Clear selected account if any
+    localStorage.removeItem('selectedGitHubAccount');
+    // Proceed with GitHub login
+    loginWithGitHub();
+  };
+
+  const handleLoginClick = () => {
+    // Always show the account selector if we have accounts, even just one
+    if (recentAccounts.length > 0 && !showAccountSelector) {
+      setShowAccountSelector(true);
+    } else {
+      // Otherwise proceed directly to GitHub login
+      loginWithGitHub();
     }
   };
 
@@ -71,12 +60,12 @@ const Login = () => {
           </h2>
         </Link>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-          Sign in to your account
+          Sign in to GitMax
         </h2>
         <p className="mt-2 text-center text-sm text-gray-400">
-          Or{' '}
+          New to GitMax?{' '}
           <Link to="/signup" className="font-medium text-purple-500 hover:text-purple-400">
-            create a new account
+            Create an account
           </Link>
         </p>
       </motion.div>
@@ -85,125 +74,44 @@ const Login = () => {
         className="mt-8 sm:mx-auto sm:w-full sm:max-w-md"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
+        transition={{ delay: 0.2 }}
       >
-        {errorMessage && (
-          <div className="mb-4 p-3 bg-red-900/50 border border-red-500 text-red-200 rounded-md text-sm">
-            {errorMessage}
+        <div className="bg-gray-800 py-8 px-6 shadow rounded-lg sm:px-10">
+          <div className="mb-6 text-center">
+            <p className="text-gray-300 mb-4">
+              Sign in with your GitHub account to access GitMax's features. We'll analyze your GitHub profile to provide personalized insights and recommendations.
+            </p>
           </div>
-        )}
-        
-        <div className="relative">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-purple-700 rounded-lg blur opacity-30"></div>
-          <div className="relative bg-gray-900 py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-800">
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                  Email address
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-700 rounded-md shadow-sm placeholder-gray-500 bg-gray-800 text-white focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                  Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-700 rounded-md shadow-sm placeholder-gray-500 bg-gray-800 text-white focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-700 rounded bg-gray-800"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
-                    Remember me
-                  </label>
-                </div>
-
-                <div className="text-sm">
-                  <a href="#" className="font-medium text-purple-500 hover:text-purple-400">
-                    Forgot your password?
-                  </a>
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : null}
-                  Sign in
-                </button>
-              </div>
-            </form>
-
-            <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-700"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-gray-900 text-gray-400">Or continue with</span>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <button
-                  type="button"
-                  onClick={handleGitHubLogin}
-                  disabled={isLoading}
-                  className="w-full flex justify-center py-2 px-4 border border-gray-700 rounded-md shadow-sm text-sm font-medium text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 0C4.477 0 0 4.477 0 10c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0110 2.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C17.14 18.163 20 14.418 20 10c0-5.523-4.477-10-10-10z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  Sign in with GitHub
-                </button>
-              </div>
-            </div>
+          
+          <div className="space-y-6">
+            <button
+              onClick={handleLoginClick}
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+            >
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 0C4.477 0 0 4.477 0 10c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V19c0 .27.16.59.67.5C17.14 18.16 20 14.42 20 10A10 10 0 0010 0z" clipRule="evenodd" />
+              </svg>
+              Continue with GitHub
+            </button>
+            
+            <p className="text-xs text-center text-gray-400">
+              By signing in, you agree to our{' '}
+              <Link to="/terms" className="text-purple-500 hover:text-purple-400">Terms of Service</Link>
+              {' '}and{' '}
+              <Link to="/privacy" className="text-purple-500 hover:text-purple-400">Privacy Policy</Link>
+            </p>
           </div>
         </div>
       </motion.div>
+
+      {/* GitHub Account Selector */}
+      {showAccountSelector && (
+        <GitHubAccountSelector 
+          accounts={recentAccounts}
+          onSelectAccount={handleAccountSelect}
+          onNewAccount={handleNewAccount}
+        />
+      )}
     </div>
   );
 };

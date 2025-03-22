@@ -44,7 +44,7 @@ async def get_github_profile(current_user: User = Depends(get_current_user)):
     try:
         # Fetch the user's detailed GitHub profile using their GitHub token
         profile = await GitHubService.get_user_profile(
-            current_user.username, 
+            current_user.github_username, 
             access_token=current_user.github_token
         )
         
@@ -102,7 +102,7 @@ async def get_repositories(current_user: User = Depends(get_current_user)):
     """
     # Fetch the user's repositories from GitHub using their GitHub token
     repositories = await GitHubService.get_user_repositories(
-        current_user.username,
+        current_user.github_username,
         access_token=current_user.github_token
     )
     return repositories
@@ -122,7 +122,7 @@ async def get_activity(current_user: User = Depends(get_current_user)):
     try:
         # Fetch the user's detailed GitHub profile using their GitHub token
         profile = await GitHubService.get_user_profile(
-            current_user.username,
+            current_user.github_username,
             access_token=current_user.github_token
         )
         

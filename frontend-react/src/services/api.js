@@ -6,14 +6,15 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Re-enable this since we've fixed the CORS config
+  withCredentials: true, // Enable sending cookies with requests
 });
 
 // Request interceptor for adding auth token
 api.interceptors.request.use(
   (config) => {
+    // Token from localStorage is used as a fallback
     const token = localStorage.getItem('token');
-    if (token) {
+    if (token && !config.headers['Authorization']) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
@@ -35,14 +36,20 @@ api.interceptors.response.use(
       
       try {
         // Try to refresh the token
-        const refreshResponse = await api.post('/api/auth/refresh');
+        const refreshResponse = await api.post('/api/auth/refresh', {}, {
+          withCredentials: true
+        });
         const { access_token } = refreshResponse.data;
         
-        // Store the new token
-        localStorage.setItem('token', access_token);
+        // Store the new token in localStorage as fallback
+        if (access_token) {
+          localStorage.setItem('token', access_token);
+        }
         
         // Update the authorization header
-        originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
+        if (access_token) {
+          originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
+        }
         
         // Retry the original request
         return api(originalRequest);

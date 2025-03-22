@@ -21,20 +21,14 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     github_id = Column(String, unique=True, index=True)
-    username = Column(String, unique=True, index=True)
-    email = Column(String, nullable=True)
-    avatar_url = Column(String, nullable=True)
-    public_repos = Column(Integer, default=0)
-    followers = Column(Integer, default=0)
-    following = Column(Integer, default=0)
-    github_url = Column(String, nullable=True)
+    github_username = Column(String, unique=True, index=True)
     github_token = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = Column(Boolean, default=True)
-    
-    # Relationship with repositories (to be implemented later)
-    # repositories = relationship("Repository", back_populates="user")
+
+    def __repr__(self):
+        return f"<User(github_username={self.github_username})>"
 
 
 # Create all tables in the database

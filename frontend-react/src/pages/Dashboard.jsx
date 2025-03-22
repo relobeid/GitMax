@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import GitHubService from '../services/github';
+import AuthService from '../services/auth';
 
 const Dashboard = () => {
   const [profile, setProfile] = useState(null);
@@ -12,6 +13,35 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Handle token from URL if present (from OAuth redirect)
+  useEffect(() => {
+    const handleUrlToken = () => {
+      const searchParams = new URLSearchParams(location.search);
+      const token = searchParams.get('token');
+      const isNewUser = searchParams.get('is_new_user') === 'true';
+
+      if (token) {
+        // Store the token and remove it from URL
+        localStorage.setItem('token', token);
+        
+        // Display welcome message based on whether user is new or returning
+        if (isNewUser) {
+          // Could show a welcome notification here
+          console.log('Welcome to GitMax! Your account has been created.');
+        } else {
+          console.log('Welcome back! You have successfully signed in.');
+        }
+        
+        // Update URL to remove the token parameter
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    };
+
+    handleUrlToken();
+  }, [location]);
 
   useEffect(() => {
     const fetchData = async () => {

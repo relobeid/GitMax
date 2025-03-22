@@ -25,15 +25,32 @@ def migrate_database():
             FROM information_schema.columns 
             WHERE table_name = 'users' AND column_name = 'github_token'
         """)
-        column_exists = cursor.fetchone() is not None
+        token_exists = cursor.fetchone() is not None
+        
+        # Check if github_username column exists
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'github_username'
+        """)
+        username_exists = cursor.fetchone() is not None
         
         # Add github_token column if it doesn't exist
-        if not column_exists:
+        if not token_exists:
             logger.info("Adding github_token column to users table")
             cursor.execute("ALTER TABLE users ADD COLUMN github_token TEXT")
+            logger.info("github_token column added successfully")
+            
+        # Add github_username column if it doesn't exist
+        if not username_exists:
+            logger.info("Adding github_username column to users table")
+            cursor.execute("ALTER TABLE users ADD COLUMN github_username TEXT UNIQUE")
+            logger.info("github_username column added successfully")
+            
+        if not token_exists or not username_exists:
             logger.info("Migration completed successfully")
         else:
-            logger.info("github_token column already exists, skipping migration")
+            logger.info("All required columns exist, skipping migration")
         
         # Close the connection
         cursor.close()

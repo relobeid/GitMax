@@ -13,6 +13,9 @@ const AuthService = {
       console.log('Initiating GitHub login...');
       const response = await api.get('/api/auth/login');
       console.log('GitHub login URL:', response.data.url);
+      
+      // Direct redirect to GitHub OAuth page
+      window.location.href = response.data.url;
       return response.data.url;
     } catch (error) {
       console.error('Failed to initiate GitHub login:', error);
@@ -33,18 +36,43 @@ const AuthService = {
       console.log('GitHub callback response:', response.data);
       const { access_token, user } = response.data;
       
-      // Store the token in localStorage
-      localStorage.setItem('token', access_token);
-      console.log('Token stored in localStorage:', access_token.substring(0, 10) + '...');
+      // Store the token in localStorage for persistence
+      if (access_token) {
+        localStorage.setItem('token', access_token);
+        console.log('Token stored in localStorage:', access_token.substring(0, 10) + '...');
+      }
       
-      // Verify the token works by making a test request
-      try {
-        console.log('Testing token with /api/auth/me endpoint...');
-        const testResponse = await api.get('/api/auth/me');
-        console.log('Token test successful:', testResponse.data);
-      } catch (testError) {
-        console.error('Token test failed:', testError);
-        console.error('Token test error details:', testError.response?.data || testError.message);
+      // Store the user's GitHub account in recent accounts
+      if (user && user.github_username) {
+        // Get existing recent accounts
+        const recentAccounts = JSON.parse(localStorage.getItem('recentGitHubAccounts') || '[]');
+        
+        // Create account object with timestamp
+        const accountInfo = {
+          id: user.id,
+          github_id: user.github_id,
+          github_username: user.github_username,
+          avatar_url: user.avatar_url || `https://github.com/${user.github_username}.png`,
+          last_login: new Date().toISOString(),
+          last_login_relative: 'Just now'
+        };
+        
+        // Check if account already exists
+        const existingIndex = recentAccounts.findIndex(acc => acc.github_id === user.github_id);
+        
+        if (existingIndex !== -1) {
+          // Update existing account
+          recentAccounts[existingIndex] = {
+            ...recentAccounts[existingIndex],
+            ...accountInfo
+          };
+        } else {
+          // Add new account
+          recentAccounts.push(accountInfo);
+        }
+        
+        // Store updated accounts list
+        localStorage.setItem('recentGitHubAccounts', JSON.stringify(recentAccounts));
       }
       
       return { token: access_token, user };
@@ -62,13 +90,12 @@ const AuthService = {
   getCurrentUser: async () => {
     try {
       console.log('Getting current user...');
-      console.log('Current token:', localStorage.getItem('token')?.substring(0, 10) + '...');
       
-      // Log the request headers
-      const token = localStorage.getItem('token');
-      console.log('Authorization header will be:', token ? `Bearer ${token.substring(0, 10)}...` : 'None');
+      // Try to get token from cookie first, then localStorage
+      const response = await api.get('/api/auth/me', {
+        withCredentials: true // This enables sending cookies with the request
+      });
       
-      const response = await api.get('/api/auth/me');
       console.log('Current user data:', response.data);
       return response.data;
     } catch (error) {
@@ -84,13 +111,15 @@ const AuthService = {
    */
   logout: async () => {
     console.log('Logging out...');
-    // Remove token from localStorage first
+    // Remove token from localStorage
     localStorage.removeItem('token');
     console.log('Token removed from localStorage');
     
     try {
-      // Try to call the logout endpoint, but don't wait for it
-      await api.post('/api/auth/logout');
+      // Call logout endpoint to clear the cookie
+      await api.post('/api/auth/logout', {}, {
+        withCredentials: true
+      });
       return { success: true };
     } catch (error) {
       console.error('Failed to call logout endpoint:', error);
@@ -105,6 +134,7 @@ const AuthService = {
    * @returns {boolean} True if the user is authenticated
    */
   isAuthenticated: () => {
+    // Check both cookie and localStorage
     const token = localStorage.getItem('token');
     console.log('Checking authentication, token exists:', !!token);
     return !!token;
@@ -116,6 +146,46 @@ const AuthService = {
    */
   getToken: () => {
     return localStorage.getItem('token');
+  },
+
+  /**
+   * Get recent GitHub accounts
+   * @returns {Array} Array of recent GitHub accounts
+   */
+  getRecentGitHubAccounts: () => {
+    try {
+      const accounts = JSON.parse(localStorage.getItem('recentGitHubAccounts') || '[]');
+      
+      // Update relative timestamps
+      return accounts.map(account => {
+        if (account.last_login) {
+          const lastLogin = new Date(account.last_login);
+          const now = new Date();
+          const diffMs = now - lastLogin;
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffMinutes = Math.floor(diffMs / (1000 * 60));
+          
+          let relativeTime = 'Just now';
+          if (diffDays > 0) {
+            relativeTime = `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+          } else if (diffHours > 0) {
+            relativeTime = `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+          } else if (diffMinutes > 0) {
+            relativeTime = `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
+          }
+          
+          return {
+            ...account,
+            last_login_relative: relativeTime
+          };
+        }
+        return account;
+      });
+    } catch (error) {
+      console.error('Failed to get recent GitHub accounts:', error);
+      return [];
+    }
   }
 };
 
